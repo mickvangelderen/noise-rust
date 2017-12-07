@@ -36,11 +36,7 @@ fn dot2(a: (f32, f32), b: (f32, f32)) -> f32 {
 
 fn rem_pos(a: isize, b: isize) -> usize {
     let r = a % b;
-    (if r < 0 {
-        r + b
-    } else {
-        r
-    }) as usize
+    (if r < 0 { r + b } else { r }) as usize
 }
 
 fn main() {
