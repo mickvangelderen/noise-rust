@@ -30,22 +30,6 @@ fn blend_p5(x: f32) -> f32 {
 //     t2 * t2 * (t * (t * (t * -20.0 + 70.0) - 84.0) + 35.0)
 // }
 
-fn mix(x0: f32, x1: f32, t: f32) -> f32 {
-    x0 * (1.0 - t) + x1 * t
-}
-
-fn mod_pos(a: isize, b: usize) -> usize {
-    if a < 0 {
-        ((a % b as isize) + b as isize) as usize
-    } else {
-        (a % b as isize) as usize
-    }
-}
-
-fn index_2d(row: isize, col: isize, width: usize, height: usize) -> usize {
-    mod_pos(row, height) * width + mod_pos(col, width)
-}
-
 fn dot2(a: (f32, f32), b: (f32, f32)) -> f32 {
     a.0 * b.0 + a.1 * b.1
 }
