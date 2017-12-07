@@ -45,6 +45,10 @@ fn index_2d(row: isize, col: isize, width: usize, height: usize) -> usize {
     mod_pos(row, height) * width + mod_pos(col, width)
 }
 
+fn dot2(a: (f32, f32), b: (f32, f32)) -> f32 {
+    a.0 * b.0 + a.1 * b.1
+}
+
 fn main() {
     let mut rng = rand::Isaac64Rng::new_unseeded();
 
@@ -90,10 +94,10 @@ fn main() {
             let g01 = gradients[index_2d(yi + 1, xi + 0, GW, GH)];
             let g11 = gradients[index_2d(yi + 1, xi + 1, GW, GH)];
 
-            let n00 = g00.0 * (xt + 0.0) + g00.1 * (yt + 0.0);
-            let n10 = g10.0 * (xt - 1.0) + g10.1 * (yt + 0.0);
-            let n01 = g01.0 * (xt + 0.0) + g01.1 * (yt - 1.0);
-            let n11 = g11.0 * (xt - 1.0) + g11.1 * (yt - 1.0);
+            let n00 = dot2(g00, (xt + 0.0, yt + 0.0));
+            let n10 = dot2(g10, (xt - 1.0, yt + 0.0));
+            let n01 = dot2(g01, (xt + 0.0, yt - 1.0));
+            let n11 = dot2(g11, (xt - 1.0, yt - 1.0));
 
             let nx0 = mix(n00, n10, xb);
             let nx1 = mix(n01, n11, xb);
