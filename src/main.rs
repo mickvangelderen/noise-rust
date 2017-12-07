@@ -56,7 +56,7 @@ fn main() {
     const GH: usize = 8;
     let gradients: Vec<(f32, f32)> = vec![(0, 0); GW * GH]
         .iter()
-        .map(|_| (rng.next_f32(), rng.next_f32()))
+        .map(|_| (rng.next_f32()*2.0 - 1.0, rng.next_f32()*2.0 - 1.0))
         .collect();
 
     let width = 512;
