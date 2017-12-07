@@ -1,4 +1,5 @@
 #![feature(fn_must_use)]
+#![feature(inclusive_range_syntax)]
 
 extern crate image;
 extern crate rand;
@@ -49,64 +50,73 @@ fn dot2(a: (f32, f32), b: (f32, f32)) -> f32 {
     a.0 * b.0 + a.1 * b.1
 }
 
+fn rem_pos(a: isize, b: isize) -> usize {
+    let r = a % b;
+    (if r < 0 {
+        r + b
+    } else {
+        r
+    }) as usize
+}
+
 fn main() {
     let mut rng = rand::Isaac64Rng::new_unseeded();
 
-    const GW: usize = 8;
-    const GH: usize = 8;
-    let gradients: Vec<(f32, f32)> = vec![(0, 0); GW * GH]
-        .iter()
-        .map(|_| (rng.next_f32()*2.0 - 1.0, rng.next_f32()*2.0 - 1.0))
-        .collect();
+    let gradients = [
+        (0.9999, 0.0), (-1.0000, 0.0), (0.0, 0.9999), (0.0, -1.0000)
+    ];
+
+    let mut permutations: Vec<u8> = (0..=255).collect();
+    rng.shuffle(&mut permutations);
 
     let width = 512;
     let height = 512;
     let mut data = Vec::new();
     data.resize(width * height, 0u8);
 
-    // Gradients per pixel (resolution).
-    let gpp_x = GW as f32 / width as f32;
-    let gpp_y = GH as f32 / height as f32;
+    for row in 0..height {
+        let y = row as f32 * 8.0 as f32 / height as f32;
+        let y0 = y.floor();
+        let y1 = y0 + 1.0;
 
-    let gpp_x_recip = 1.0 / gpp_x;
-    let gpp_y_recip = 1.0 / gpp_y;
+        for col in 0..width {
+            let x = col as f32 * 8.0 as f32 / width as f32;
+            let x0 = x.floor();
+            let x1 = x0 + 1.0;
 
-    for y in 0..height {
-        let yf = y as f32;
-        // y index of gradient: floor(yf * GH / height)
-        let yi = (yf * gpp_y) as isize;
-        let y0 = yi as f32 * gpp_y_recip;
-        // fraction: (y - y0)/(y1 - y0)
-        let yt = (yf - y0) * gpp_y;
-        let yb = blend_p5(yt);
+            let y0i = rem_pos(y0 as isize + 0, permutations.len() as isize);
+            let y1i = rem_pos(y0 as isize + 1, permutations.len() as isize);
+            let x0i = rem_pos(x0 as isize + 0, permutations.len() as isize);
+            let x1i = rem_pos(x0 as isize + 1, permutations.len() as isize);
 
-        for x in 0..width {
-            let xf = x as f32;
-            // x index of gradient: floor(xf * GW / width)
-            let xi = (xf * gpp_x) as isize;
-            let x0 = xi as f32 * gpp_x_recip;
-            // fraction: (x - x0)/(x1 - x0)
-            let xt = (xf - x0) * gpp_x;
-            let xb = blend_p5(xt);
+            let gi00 = permutations[(x0i + permutations[y0i] as usize) % permutations.len()] as usize % gradients.len();
+            let gi10 = permutations[(x1i + permutations[y0i] as usize) % permutations.len()] as usize % gradients.len();
+            let gi01 = permutations[(x0i + permutations[y1i] as usize) % permutations.len()] as usize % gradients.len();
+            let gi11 = permutations[(x1i + permutations[y1i] as usize) % permutations.len()] as usize % gradients.len();
 
-            let g00 = gradients[index_2d(yi + 0, xi + 0, GW, GH)];
-            let g10 = gradients[index_2d(yi + 0, xi + 1, GW, GH)];
-            let g01 = gradients[index_2d(yi + 1, xi + 0, GW, GH)];
-            let g11 = gradients[index_2d(yi + 1, xi + 1, GW, GH)];
+            let g00 = gradients[gi00];
+            let g10 = gradients[gi10];
+            let g01 = gradients[gi01];
+            let g11 = gradients[gi11];
 
-            let n00 = dot2(g00, (xt + 0.0, yt + 0.0));
-            let n10 = dot2(g10, (xt - 1.0, yt + 0.0));
-            let n01 = dot2(g01, (xt + 0.0, yt - 1.0));
-            let n11 = dot2(g11, (xt - 1.0, yt - 1.0));
+            let n00 = dot2(g00, (x - x0, y - y0));
+            let n10 = dot2(g10, (x - x1, y - y0));
+            let n01 = dot2(g01, (x - x0, y - y1));
+            let n11 = dot2(g11, (x - x1, y - y1));
 
-            let nx0 = mix(n00, n10, xb);
-            let nx1 = mix(n01, n11, xb);
+            let nx0 = blend_p5(x1 - x) * n00 + blend_p5(x - x0) * n10;
+            let nx1 = blend_p5(x1 - x) * n01 + blend_p5(x - x0) * n11;
 
-            let nxy = mix(nx0, nx1, yb);
+            let nxy = blend_p5(y1 - y) * nx0 + blend_p5(y - y0) * nx1;
 
-            data[y * width + x] = ((nxy + 1.0) * 128.0) as u8;
-            // data[(width - 1 - y) * width + x] = ((yb + xb) * 128.0) as u8;
-            // data[(width - 1 - y) * width + x] = (g01.0 * 256.0) as u8;
+            // NOTE: Should use `.min(255.0).floor() as u8` but I wan't
+            // to see anything special that happens because of float
+            // rounding. Using 0.9999 instead of 1.0 for the gradients
+            // is one thing I've had to apply.
+            data[(width - 1 - row) * width + col] = ((nxy + 1.0) * 128.0) as u8;
+            // data[(width - 1 - row) * width + col] = ((g11.1 + 1.0) * 128.0) as u8;
+            // data[(width - 1 - row) * width + col] = (gi01 as f32 * 255.0/3.0) as u8;
+            // data[(width - 1 - row) * width + col] = (by1 * 256.0) as u8;
         }
     }
 
