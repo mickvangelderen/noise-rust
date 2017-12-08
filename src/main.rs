@@ -1,6 +1,3 @@
-#![feature(fn_must_use)]
-#![feature(inclusive_range_syntax)]
-
 extern crate image;
 
 mod permutations;
@@ -160,55 +157,3 @@ fn main() {
         )
         .unwrap();
 }
-
-// use std::ops::{Sub, Add, Mul, Div};
-
-// fn map<T>(x: T, x_range: (T, T), y_range: (T, T)) -> T
-// where
-//     T: Copy + Sub<Output = T> + Add<Output = T> + Mul<Output = T> + Div<Output = T>,
-// {
-//     let (x0, x1) = x_range;
-//     let (y0, y1) = y_range;
-//     let xr = (x - x0) / (x1 - x0);
-//     y0 + xr * y1
-// }
-
-// fn map_stable<T>(x: T, x_range: (T, T), y_range: (T, T)) -> T
-// where
-//     T: Copy + Sub<Output = T> + Add<Output = T> + Mul<Output = T> + Div<Output = T>,
-// {
-//     let (x0, x1) = x_range;
-//     let (y0, y1) = y_range;
-//     // y0 + (x - x0)/(x1 - x0) * (y1 - y0);
-//     // y0 + (x - x0)*(y1 - y0)/(x1 - x0);
-//     // (y0(x1 - x0) + (x - x0)*(y1 - y0))/(x1 - x0);
-//     // (x1*y0 - x0*y0 + x*y1 - x*y0 - x0*y1 + x0*y0)/(x1 - x0);
-//     // (x1*y0 + x*y1 - x*y0 - x0*y1)/(x1 - x0);
-//     ((x1 - x) * y0 + (x - x0) * y1) / (x1 - x0)
-// }
-
-// struct Domain(f64, f64, f64);
-
-// struct Weights(f64, f64, f64);
-
-// struct Range(f64, f64);
-
-// impl Domain {
-//     fn new(x0: f64, x1: f64) -> Self {
-//         Domain(x0, x1, 1.0/(x1 - x0))
-//     }
-
-//     fn weights(&self, x: f64) -> Weights {
-//         Weights(self.1 - x, x - self.0, self.2)
-//     }
-// }
-
-// impl Weights {
-//     fn apply(&self, range: &Range) -> f64 {
-//         (self.0*range.0 + self.1*range.1)*self.2
-//     }
-
-//     fn blend_and_apply(&self, blend: fn(f64) -> f64, range: &Range) -> f64 {
-//         blend(self.0*self.2)*range.0 + blend(self.1*self.2)*range.1
-//     }
-// }
