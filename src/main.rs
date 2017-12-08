@@ -7,7 +7,7 @@ mod permutations;
 
 use permutations::PERMUTATIONS;
 
-// fn blend_p3(t: f32) -> f32 {
+// fn smooth_p3(t: f32) -> f32 {
 //     t * t * (-2.0 * t + 3.0)
 // }
 
@@ -22,16 +22,16 @@ use permutations::PERMUTATIONS;
 ///
 /// The same polynomial can be centered around (0, 0) as
 /// g(x) = (3/8)x^5 - (10/8)x^3 + (15/8)x.
-fn blend_p5(x: f32) -> f32 {
+fn smooth_p5(x: f32) -> f32 {
     x * x * x * (x * (x * 6.0 - 15.0) + 10.0)
 }
 
-// fn blend_p7(t: f32) -> f32 {
+// fn smooth_p7(t: f32) -> f32 {
 //     let t2 = t * t;
 //     t2 * t2 * (t * (t * (t * -20.0 + 70.0) - 84.0) + 35.0)
 // }
 
-// fn blend_sin(x: f32) -> f32 {
+// fn smooth_sin(x: f32) -> f32 {
 //     0.5*(1.0 + f32::sin(std::f32::consts::PI*(x - 0.5)))
 // }
 
@@ -68,7 +68,7 @@ const ALMOST_ONE_F32: f32 = 0.999_999_94;
 //     let gi = (gi0 << 1) | gi1;
 
 //     let xd = x - x0;
-//     let fxd = blend_p5(xd);
+//     let fxd = smooth_p5(xd);
 
 //     match gi {
 //         0 => {
@@ -124,10 +124,10 @@ fn perlin_2d(x: f32, y: f32) -> f32 {
     let n01 = dot2(g01, (x - x0, y - y1));
     let n11 = dot2(g11, (x - x1, y - y1));
 
-    let nx0 = blend_p5(x1 - x) * n00 + blend_p5(x - x0) * n10;
-    let nx1 = blend_p5(x1 - x) * n01 + blend_p5(x - x0) * n11;
+    let nx0 = smooth_p5(x1 - x) * n00 + smooth_p5(x - x0) * n10;
+    let nx1 = smooth_p5(x1 - x) * n01 + smooth_p5(x - x0) * n11;
 
-    let nxy = blend_p5(y1 - y) * nx0 + blend_p5(y - y0) * nx1;
+    let nxy = smooth_p5(y1 - y) * nx0 + smooth_p5(y - y0) * nx1;
 
     nxy
 }
