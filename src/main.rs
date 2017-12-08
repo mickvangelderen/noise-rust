@@ -2,9 +2,10 @@
 #![feature(inclusive_range_syntax)]
 
 extern crate image;
-extern crate rand;
 
-use rand::Rng;
+mod permutations;
+
+use permutations::PERMUTATIONS;
 
 // fn blend_p3(t: f32) -> f32 {
 //     t * t * (-2.0 * t + 3.0)
@@ -30,6 +31,10 @@ fn blend_p5(x: f32) -> f32 {
 //     t2 * t2 * (t * (t * (t * -20.0 + 70.0) - 84.0) + 35.0)
 // }
 
+// fn blend_sin(x: f32) -> f32 {
+//     0.5*(1.0 + f32::sin(std::f32::consts::PI*(x - 0.5)))
+// }
+
 fn dot2(a: (f32, f32), b: (f32, f32)) -> f32 {
     a.0 * b.0 + a.1 * b.1
 }
@@ -39,15 +44,96 @@ fn rem_pos(a: isize, b: isize) -> usize {
     (if r < 0 { r + b } else { r }) as usize
 }
 
+fn almost_one_f32() -> f32 {
+    unsafe { std::mem::transmute(0x3F7FFFFFu32) }
+}
+
+const ALMOST_ONE_F32: f32 = 0.999_999_94;
+
+// static GRADIENTS_1D: [f32; 2] = [-1.0, ALMOST_ONE_F32];
+
+// fn perlin_1d(x: f32) -> f32 {
+//     let x0 = x.floor();
+
+//     let x0i = rem_pos(x0 as isize + 0, PERMUTATIONS.len() as isize);
+//     let x1i = rem_pos(x0 as isize + 1, PERMUTATIONS.len() as isize);
+
+//     let gi0 = PERMUTATIONS[x0i % PERMUTATIONS.len()] as usize & 1;
+//     let gi1 = PERMUTATIONS[x1i % PERMUTATIONS.len()] as usize & 1;
+
+//     assert!(gi0 <= 1);
+//     assert!(gi1 <= 1);
+
+//     // Derived the computation for each possible combination of gradients.
+//     let gi = (gi0 << 1) | gi1;
+
+//     let xd = x - x0;
+//     let fxd = blend_p5(xd);
+
+//     match gi {
+//         0 => {
+//             fxd - xd
+//         },
+//         1 => {
+//             -fxd - xd + 2.0*xd*fxd
+//         },
+//         2 => {
+//             fxd + xd - 2.0*xd*fxd
+//         },
+//         _ => {
+//             -fxd + xd
+//         },
+//     }
+// }
+
+static GRADIENTS_2D: [(f32, f32); 4] = [
+    (ALMOST_ONE_F32, 0.0),
+    (-1.0, 0.0),
+    (0.0, ALMOST_ONE_F32),
+    (0.0, -1.0),
+];
+
+fn perlin_2d(x: f32, y: f32) -> f32 {
+    let y0 = y.floor();
+    let y1 = y0 + 1.0;
+
+    let x0 = x.floor();
+    let x1 = x0 + 1.0;
+
+    let y0i = rem_pos(y0 as isize + 0, PERMUTATIONS.len() as isize);
+    let y1i = rem_pos(y0 as isize + 1, PERMUTATIONS.len() as isize);
+    let x0i = rem_pos(x0 as isize + 0, PERMUTATIONS.len() as isize);
+    let x1i = rem_pos(x0 as isize + 1, PERMUTATIONS.len() as isize);
+
+    let gi00 = PERMUTATIONS[(x0i + PERMUTATIONS[y0i] as usize) % PERMUTATIONS.len()] as usize
+        % GRADIENTS_2D.len();
+    let gi10 = PERMUTATIONS[(x1i + PERMUTATIONS[y0i] as usize) % PERMUTATIONS.len()] as usize
+        % GRADIENTS_2D.len();
+    let gi01 = PERMUTATIONS[(x0i + PERMUTATIONS[y1i] as usize) % PERMUTATIONS.len()] as usize
+        % GRADIENTS_2D.len();
+    let gi11 = PERMUTATIONS[(x1i + PERMUTATIONS[y1i] as usize) % PERMUTATIONS.len()] as usize
+        % GRADIENTS_2D.len();
+
+    let g00 = GRADIENTS_2D[gi00];
+    let g10 = GRADIENTS_2D[gi10];
+    let g01 = GRADIENTS_2D[gi01];
+    let g11 = GRADIENTS_2D[gi11];
+
+    let n00 = dot2(g00, (x - x0, y - y0));
+    let n10 = dot2(g10, (x - x1, y - y0));
+    let n01 = dot2(g01, (x - x0, y - y1));
+    let n11 = dot2(g11, (x - x1, y - y1));
+
+    let nx0 = blend_p5(x1 - x) * n00 + blend_p5(x - x0) * n10;
+    let nx1 = blend_p5(x1 - x) * n01 + blend_p5(x - x0) * n11;
+
+    let nxy = blend_p5(y1 - y) * nx0 + blend_p5(y - y0) * nx1;
+
+    nxy
+}
+
 fn main() {
-    let mut rng = rand::Isaac64Rng::new_unseeded();
-
-    let gradients = [
-        (0.9999, 0.0), (-1.0000, 0.0), (0.0, 0.9999), (0.0, -1.0000)
-    ];
-
-    let mut permutations: Vec<u8> = (0..=255).collect();
-    rng.shuffle(&mut permutations);
+    assert_eq!(almost_one_f32(), ALMOST_ONE_F32);
 
     let width = 512;
     let height = 512;
@@ -55,48 +141,11 @@ fn main() {
     data.resize(width * height, 0u8);
 
     for row in 0..height {
-        let y = row as f32 * 8.0 as f32 / height as f32;
-        let y0 = y.floor();
-        let y1 = y0 + 1.0;
-
+        let y = row as f32 as f32 / height as f32;
         for col in 0..width {
-            let x = col as f32 * 8.0 as f32 / width as f32;
-            let x0 = x.floor();
-            let x1 = x0 + 1.0;
-
-            let y0i = rem_pos(y0 as isize + 0, permutations.len() as isize);
-            let y1i = rem_pos(y0 as isize + 1, permutations.len() as isize);
-            let x0i = rem_pos(x0 as isize + 0, permutations.len() as isize);
-            let x1i = rem_pos(x0 as isize + 1, permutations.len() as isize);
-
-            let gi00 = permutations[(x0i + permutations[y0i] as usize) % permutations.len()] as usize % gradients.len();
-            let gi10 = permutations[(x1i + permutations[y0i] as usize) % permutations.len()] as usize % gradients.len();
-            let gi01 = permutations[(x0i + permutations[y1i] as usize) % permutations.len()] as usize % gradients.len();
-            let gi11 = permutations[(x1i + permutations[y1i] as usize) % permutations.len()] as usize % gradients.len();
-
-            let g00 = gradients[gi00];
-            let g10 = gradients[gi10];
-            let g01 = gradients[gi01];
-            let g11 = gradients[gi11];
-
-            let n00 = dot2(g00, (x - x0, y - y0));
-            let n10 = dot2(g10, (x - x1, y - y0));
-            let n01 = dot2(g01, (x - x0, y - y1));
-            let n11 = dot2(g11, (x - x1, y - y1));
-
-            let nx0 = blend_p5(x1 - x) * n00 + blend_p5(x - x0) * n10;
-            let nx1 = blend_p5(x1 - x) * n01 + blend_p5(x - x0) * n11;
-
-            let nxy = blend_p5(y1 - y) * nx0 + blend_p5(y - y0) * nx1;
-
-            // NOTE: Should use `.min(255.0).floor() as u8` but I wan't
-            // to see anything special that happens because of float
-            // rounding. Using 0.9999 instead of 1.0 for the gradients
-            // is one thing I've had to apply.
-            data[(width - 1 - row) * width + col] = ((nxy + 1.0) * 128.0) as u8;
-            // data[(width - 1 - row) * width + col] = ((g11.1 + 1.0) * 128.0) as u8;
-            // data[(width - 1 - row) * width + col] = (gi01 as f32 * 255.0/3.0) as u8;
-            // data[(width - 1 - row) * width + col] = (by1 * 256.0) as u8;
+            let x = col as f32 as f32 / width as f32;
+            let gray = perlin_2d(8.0 * x, 8.0 * y) * 128.0 + 128.0;
+            data[(width - 1 - row) * width + col] = gray as u8;
         }
     }
 
